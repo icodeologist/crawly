@@ -1,5 +1,8 @@
 package queue
 
+// making the global queue to acess it everywhere
+var Que = &Queue{}
+
 type Queue struct {
 	items []string
 }
