@@ -4,18 +4,20 @@ import (
 	"net/url"
 
 	"fmt"
-	"github.com/antchfx/htmlquery"
-	"github.com/goware/urlx"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/antchfx/htmlquery"
+	"github.com/goware/urlx"
+
 	"github.com/icodeologist/crawly/queue"
+	"golang.org/x/net/html"
 )
 
 const (
 	MAX_DEPTH        = 3
-	MAX_LENGTH_LINKS = 20
+	MAX_LENGTH_LINKS = 100
 )
 
 // map the links to bool to keep track of
@@ -55,8 +57,10 @@ func Crawl(url string, depth int) {
 		return
 	}
 	resp, err := http.Get(url)
+	// the error may be due to wrong type of urls or links
+	// ignore them and continue
 	if err != nil {
-		log.Fatalf("Error : Could not connect to the server %v\n", err)
+		fmt.Printf("Error GET request : %v\n", err)
 	}
 	defer resp.Body.Close()
 	//parse the response
@@ -64,11 +68,102 @@ func Crawl(url string, depth int) {
 	if err != nil {
 		log.Fatalf("Cound not parse the url ", err)
 	}
+	// Finding all html links and adding it to queue
 	list := htmlquery.Find(doc, "//a[@href]")
 	for _, n := range list {
 		href := htmlquery.SelectAttr(n, "href")
-		prefix := "https:"
-		queue.Que.Enqueue(prefix + href)
+		if href == "" || href[0] == '#' || len(href) >= 10 && href[:10] == "javascript" {
+			fmt.Println("Wrong url : ", href)
+			continue
+		}
+		url, err := NormalizeURLs(href)
+		if err != nil {
+			fmt.Println(url)
+			continue
+		}
+		queue.Que.Enqueue(href)
+
+	}
+
+	// find all h1 to h6 tags
+	// and extract its data
+
+	FetchH1TagsData(doc)
+	FetchH2TagsData(doc)
+	FetchH3TagsData(doc)
+	FetchH4TagsData(doc)
+	FetchH5TagsData(doc)
+	FetchH6TagsData(doc)
+}
+
+func FetchH1TagsData(doc *html.Node) {
+	// H1 tags
+	tags := htmlquery.Find(doc, "//h1")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H1 : ", data)
+	}
+
+}
+
+func FetchH2TagsData(doc *html.Node) {
+	// H2 tags
+	tags := htmlquery.Find(doc, "//h2")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H2 : ", data)
+	}
+}
+
+func FetchH3TagsData(doc *html.Node) {
+	// H3 tags
+	tags := htmlquery.Find(doc, "//h3")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H3 : ", data)
+	}
+}
+
+func FetchH4TagsData(doc *html.Node) {
+	// H4 tags
+	tags := htmlquery.Find(doc, "//h4")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H4 : ", data)
+	}
+}
+
+func FetchH5TagsData(doc *html.Node) {
+	// H5 tags
+	tags := htmlquery.Find(doc, "//h5")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H5 : ", data)
+	}
+}
+
+func FetchH6TagsData(doc *html.Node) {
+	// H6 tags
+	tags := htmlquery.Find(doc, "//h6")
+	for _, n := range tags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("H6 : ", data)
+	}
+}
+
+func FetchPTags(doc *html.Node) {
+	ptags := htmlquery.Find(doc, "//p")
+	for _, n := range ptags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("P : ", data)
+	}
+}
+
+func FetchBoldTags(doc *html.Node) {
+	boldTags := htmlquery.Find(doc, "//b")
+	for _, n := range boldTags {
+		data := htmlquery.InnerText(n)
+		fmt.Println("B : ", data)
 	}
 }
 
