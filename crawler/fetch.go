@@ -1,13 +1,15 @@
 package crawler
 
 import (
+	"net/url"
+
 	"fmt"
+	"github.com/antchfx/htmlquery"
+	"github.com/goware/urlx"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/icodeologist/crawly/queue"
 )
 
@@ -58,23 +60,16 @@ func Crawl(url string, depth int) {
 	}
 	defer resp.Body.Close()
 	//parse the response
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := htmlquery.LoadURL(url)
 	if err != nil {
-		log.Fatalf("Error : Parsing html file by go query generated this error %v\n", err)
+		log.Fatalf("Cound not parse the url ", err)
 	}
-	// TODO: extract the data here
-	// extractData(link)
-	// TODO: Put the data to databse
-	// make the struct and put the data to database
-
-	// Gather all the links from the downloaded html body
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		link, exists := s.Attr("href")
-		// TODO: Check domain
-		if exists && strings.HasPrefix(link, "https") && !visitedLinks[link] {
-			queue.Que.Enqueue(link)
-		}
-	})
+	list := htmlquery.Find(doc, "//a[@href]")
+	for _, n := range list {
+		href := htmlquery.SelectAttr(n, "href")
+		prefix := "https:"
+		queue.Que.Enqueue(prefix + href)
+	}
 }
 
 // this function handles visiting the extracted links from the crawl function
@@ -90,7 +85,6 @@ func QueueLogic() {
 	for !queue.Que.IsEmpty() {
 		link, ok := queue.Que.Dequeue()
 		if !ok {
-			log.Fatalf("Queue is empty")
 			return
 		}
 		if link == "" {
@@ -100,11 +94,32 @@ func QueueLogic() {
 			continue
 		}
 		if len(visitedLinks) >= MAX_LENGTH_LINKS {
-			log.Fatalf("Maximum Link quota reached %v Want : %v Have", MAX_LENGTH_LINKS, len(visitedLinks))
+			fmt.Printf("Maximum Link quota reached %v Want : %v Have", MAX_LENGTH_LINKS, len(visitedLinks))
+			for l, _ := range visitedLinks {
+				fmt.Println("l", l)
+
+			}
+			fmt.Println("Total visited sites : ", len(visitedLinks))
 			return
 		}
 		visitedLinks[link] = true
 		fmt.Printf("Crawling %v\n", link)
 		Crawl(link, depth+1)
+	}
+
+}
+
+// Normalize the urls
+func NormalizeURLs(rawUrl string) (string, error) {
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return "", fmt.Errorf("Error : Parsing url %v\n", err)
+	}
+	fmt.Println("U", u)
+	normalizedString, err := urlx.Normalize(u)
+	if err != nil {
+		return "", err
+	} else {
+		return normalizedString, nil
 	}
 }
